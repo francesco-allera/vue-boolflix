@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="./img/icon.png" type="image/x-png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.8/dist/vue.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.27.2/axios.min.js"></script>
+    <title>Boolflix</title>
+</head>
+<body>
+
+    <div id="app">
+        <!-- navbar fixed -->
+        <nav>
+            <div class="container d-flex-btw">
+                <!-- left: logo + categories -->
+                <div class="nav-left d-flex-btw">
+                    <div id="logo" @click="reload">
+                        <img src="./img/logo.png" alt="boolflix logo">
+                    </div>
+
+                    <!-- categories filter -->
+                    <label v-for="(el,i) in initialData" :for="el.name" @click="changePage(i)">
+                        <input type="radio" :id="el.name" :value="el.name" v-model="pagination">
+                        <span>{{ el.name }}</span>
+                    </label>
+                    <!-- /categories filter -->
+                </div>
+                <!-- /left -->
+
+                <!-- right: search + pro-pic -->
+                <div class="nav-right d-flex-btw">
+                    <!-- search bar -->
+                    <div class="search-input" :class="{ active: showSearch }" @click="clickSearch()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="search-icon">
+                            <path fill-rule="evenodd" clip-rule="evenodd" d="M13 11C13 13.7614 10.7614 16 8 16C5.23858 16 3 13.7614 3 11C3 8.23858 5.23858 6 8 6C10.7614 6 13 8.23858 13 11ZM14.0425 16.2431C12.5758 17.932 10.4126 19 8 19C3.58172 19 0 15.4183 0 11C0 6.58172 3.58172 3 8 3C12.4183 3 16 6.58172 16 11C16 11.9287 15.8417 12.8205 15.5507 13.6497L24.2533 18.7028L22.7468 21.2972L14.0425 16.2431Z" fill="currentColor">
+                            </path>
+                        </svg>
+
+                        <input v-show="showSearch" type="text" v-model="query" @keyup="searching" @blur="clickSearch()">
+                    </div>
+                    <!-- /search bar -->
+
+                    <div id="profile-pic">
+                        <img src="./img/profile.png" alt="profile picture">
+                    </div>
+                </div>
+                <!-- /right -->
+            </div>
+        </nav>
+        <!-- /navbar -->
+
+        <!-- main from categories -->
+        <main v-if="!query && searchingData[0].arr.length === 0" class="bg-main" :style="bgMain()">
+            <!-- Jumbotron -->
+            <div class="jumbotron">
+                <div class="container">
+                    <h1>{{ noun }}</h1>
+                    <p>{{ overview }}</p>
+                </div>
+            </div>
+            <!-- / Jumbotron -->
+
+            <!-- Page Title -->
+            <div class="title">
+                <div class="container">
+                    <h2>{{ initialData[idxInitialData].title }}</h2>
+                </div>
+            </div>
+            <!-- / Page Title -->
+
+            <!-- Slider Container -->
+            <div class="slider-container">
+                <!-- Left Arrow -->
+                <div class="slider-prev" @click="slide(-1)">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </div>
+                <!-- / Left Arrow -->
+
+                <!-- Horizontal Slider -->
+                <div class="slider" :style="'gap: ' + space + 'px;'">
+                    <!-- Cards -->
+                    <div v-for="(el,i) in currentArray" class="card" :style="margin(i)" @click="open(i)"
+                        @mouseover="getCrew(el)">
+                        <!-- Poster -->
+                        <div class="card-poster" :style="poster(el.poster_path)">
+                            <!-- Info: Title/Name + Stars + Date + Lang -->
+                            <div class="card-info">
+                                <h2>{{ el.title || el.name }}</h2>
+
+                                <!-- Stars -->
+                                <div class="vote">
+                                    <i v-for="n in vote(el.vote_average)" class="fa-solid fa-star full"></i>
+                                    <i v-for="n in (5 - vote(el.vote_average))" class="fa-solid fa-star empty"></i>
+                                </div>
+                                <!-- / Stars -->
+
+                                <!-- Date + Lang -->
+                                <div class="lang">
+                                    <span>{{ date(el.release_date || el.first_air_date) }}</span>
+                                    <img :src="flag(el.original_language)" :alt="el.original_language + ' flag'">
+                                </div>
+                                <!-- / Date + Lang -->
+                            </div>
+                            <!-- / Info -->
+                        </div>
+                        <!-- / Poster -->
+                    </div>
+                    <!-- / Cards -->
+                </div>
+                <!-- / Horizontal Slider -->
+
+                <!-- Right Arrow -->
+                <div class="slider-next" @click="slide(+1)">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+                <!-- / Right Arrow -->
+            </div>
+            <!-- / Slider Container -->
+        </main>
+        <!-- /main from categories -->
+
+        <!-- main from searching -->
+        <main v-else>
+            <div class="container">
+                <!-- Results Search -->
+                <div v-if="query && searchingData[0].arr.length > 0" class="results">
+
+                    <!-- Category Filter -->
+                    <div class="categories">
+                        <h3>Filter by category:</h3>
+
+                        <label v-for="(el,i) in searchingData" :for="el.name">
+                            <input type="radio" :id="el.name" :value="el.name" v-model="category">
+                            <span @click="filterCategory(i)">{{ el.name }}</span>
+                        </label>
+                    </div>
+                    <!-- Category Filter -->
+
+                    <!-- Category Filter -->
+                    <div class="genres">
+                        <h3>Filter by genre:</h3>
+
+                        <div class="genres-box">
+                            <label for="none">
+                                <input type="radio" id="none" value="none" v-model="genre">
+                                <span>All</span>
+                            </label>
+                            <label v-for="(el,i) in currentGenres" :for="el.name">
+                                <input type="radio" :id="el.name" :value="el.id" v-model="genre">
+                                <span>{{ el.name }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    <!-- Category Filter -->
+
+                    <!-- Card Container -->
+                    <div class="card-container">
+                        <!-- Cards -->
+                        <div v-for="(el,i) in currentArray" v-if="filtering(el)" class="card" @click="open(i)"
+                            @mouseover="getCrew(el)">
+                            <!-- Poster -->
+                            <div class="card-poster" :style="poster(el.poster_path)">
+                                <!-- Info: Title/Name + Stars + Date + Lang -->
+                                <div class="card-info">
+                                    <h2>{{ el.title || el.name }}</h2>
+
+                                    <!-- Stars -->
+                                    <div class="vote">
+                                        <i v-for="n in vote(el.vote_average)" class="fa-solid fa-star full"></i>
+                                        <i v-for="n in (5 - vote(el.vote_average))" class="fa-solid fa-star empty"></i>
+                                    </div>
+                                    <!-- / Stars -->
+
+                                    <!-- Date + Lang -->
+                                    <div class="lang">
+                                        <span>{{ date(el.release_date || el.first_air_date) }}</span>
+                                        <img :src="flag(el.original_language)" :alt="el.original_language + ' flag'">
+                                    </div>
+                                    <!-- / Date + Lang -->
+                                </div>
+                                <!-- / Info -->
+                            </div>
+                            <!-- / Poster -->
+                        </div>
+                        <!-- / Cards -->
+
+                        <!-- Autoloader when scrolling on bottom -->
+                        <div v-if="loader()" id="loader"></div>
+                    </div>
+                    <!-- Card Container -->
+                </div>
+                <!-- / Results Search -->
+
+                <!-- no results search -->
+                <div v-if="query && searchingData[0].arr.length === 0" class="no-results">
+                    <div>
+                        <p>
+                            Your search for "{{ query }}" did not have any matches.
+                        </p>
+
+                        <p>
+                            Suggestions:
+                        </p>
+
+                        <ul>
+                            <li>
+                                Try different keywords
+                            </li>
+
+                            <li>
+                                Looking for a movie or TV show?
+                            </li>
+
+                            <li>
+                                Try using a movie or TV show title
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <!-- /no results search -->
+            </div>
+        </main>
+        <!-- /main from searching -->
+
+        <!-- modal frame -->
+        <div v-if="idxModal !== null" class="modal-bg">
+            <!-- background is the actual poster -->
+            <div class="modal" :style="backdrop(currentArray[idxModal].backdrop_path)">
+                <!-- All Possible Infos -->
+                <div class="modal-container">
+                    <!-- title -->
+                    <h2>
+                        {{ currentArray[idxModal].title || currentArray[idxModal].name }}
+                    </h2>
+
+                    <div class="line-info">
+                        <!-- stars from 1 to 5 -->
+                        <div class="vote">
+                            <i v-for="n in vote(currentArray[idxModal].vote_average)" class="fa-solid fa-star full"></i>
+                            <i v-for="n in (5 - vote(currentArray[idxModal].vote_average))"
+                                class="fa-solid fa-star empty"></i>
+                        </div>
+
+                        <!-- date -->
+                        <h3>
+                            {{ date(currentArray[idxModal].release_date || currentArray[idxModal].first_air_date) }}
+                        </h3>
+
+                        <!-- flag -->
+                        <img :src="flag(currentArray[idxModal].original_language)"
+                            :alt="currentArray[idxModal].original_language + ' flag'">
+
+                        <!-- original title -->
+                        <h3
+                            v-if="currentArray[idxModal].title !== currentArray[idxModal].original_title || currentArray[idxModal].name !== currentArray[idxModal].original_name">
+                            {{ currentArray[idxModal].original_title || currentArray[idxModal].original_name }}
+                        </h3>
+                    </div>
+
+                    <div class="modal-info">
+                        <!-- overview -->
+                        <div class="info-left">
+                            <p>
+                                {{ currentArray[idxModal].overview || 'No available descriptions for this title' }}
+                            </p>
+                        </div>
+
+                        <!-- specific info -->
+                        <div class="info-right">
+                            <div v-if="director">
+                                <span>Director:</span> {{ director }}
+                            </div>
+                            <div v-if="cast">
+                                <span>Cast:</span> {{ cast }}
+                            </div>
+                            <div v-if="genres">
+                                <span>Genres:</span> {{ genres }}
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Overview + Specific Info -->
+                </div>
+                <!-- / All Possible Infos -->
+
+                <!-- close modal -->
+                <div class="modal-closer" @click="close">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M2.29297 3.70706L10.5859 12L2.29297 20.2928L3.70718 21.7071L12.0001 13.4142L20.293 21.7071L21.7072 20.2928L13.4143 12L21.7072 3.70706L20.293 2.29285L12.0001 10.5857L3.70718 2.29285L2.29297 3.70706Z" fill="currentColor">
+                        </path>
+                    </svg>
+                </div>
+                <!-- /close modal -->
+            </div>
+        </div>
+        <!-- /modal frame -->
+    </div>
+
+    <script src="./js/script.js"></script>
+</body>
+</html>
